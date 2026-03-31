@@ -54,10 +54,10 @@ function icon(name: keyof typeof ICONS, x: number, y: number, size: number, colo
 async function generateOG(width: number, height: number, filename: string) {
 	const cx = width / 2;
 
-	const asciiY = 130;
-	const taglineY = 340;
-	const installY = 430;
-	const iconsY = 500;
+	const asciiY = 110;
+	const taglineY = 310;
+	const installY = 440;
+	const iconsY = 510;
 
 	const iconNames: (keyof typeof ICONS)[] = ["youtube", "tiktok", "instagram", "x", "microphone", "musicNote"];
 	const iconSize = 28;
