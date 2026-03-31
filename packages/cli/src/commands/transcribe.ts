@@ -107,7 +107,12 @@ export function createTranscribeCommand(): Command {
 						if (spinner && !done) spinner.start(step);
 					},
 					onProgress: (progress) => {
-						if (spinner && !done) spinner.message(`Transcribing... ${progress.percent}%`);
+						if (spinner && !done) {
+							const pct = progress.percent;
+							const filled = Math.round(pct / 5);
+							const bar = "\u2588".repeat(filled) + "\u2591".repeat(20 - filled);
+							spinner.message(`Transcribing ${bar} ${pct}%`);
+						}
 					},
 				});
 
