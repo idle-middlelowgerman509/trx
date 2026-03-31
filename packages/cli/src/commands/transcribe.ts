@@ -105,9 +105,12 @@ export function createTranscribeCommand(): Command {
 					onStep: (step) => {
 						if (spinner) spinner.start(step);
 					},
+					onProgress: (progress) => {
+						if (spinner) spinner.message(`Transcribing... ${progress.percent}%`);
+					},
 				});
 
-				if (spinner) spinner.stop("Done");
+				if (spinner) spinner.stop("Transcription complete");
 
 				const filtered = opts.fields ? filterFields(result, opts.fields) : result;
 				output(format, {
@@ -118,12 +121,16 @@ export function createTranscribeCommand(): Command {
 							["Input", result.input],
 							["Language", result.metadata.language],
 							["Model", result.metadata.model],
-							["SRT", result.files.srt],
 							["TXT", result.files.txt],
-							["WAV", result.files.wav],
+							["SRT", result.files.srt],
 						],
 					},
 				});
+
+				if (isTTY) {
+					const wordCount = result.text.split(/\s+/).filter(Boolean).length;
+					p.note(`${wordCount} words transcribed\n\nopen ${result.files.txt}`, "Next");
+				}
 			} catch (e) {
 				outputError((e as Error).message, format);
 			}

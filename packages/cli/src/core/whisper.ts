@@ -1,6 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import type { TrxConfig } from "../utils/config.ts";
-import { spawnOrThrow } from "../utils/spawn.ts";
+import { spawnOrThrow, spawnStreaming } from "../utils/spawn.ts";
+
+export interface WhisperProgress {
+	percent: number;
+}
 
 export interface WhisperResult {
 	srtPath: string;
@@ -12,6 +16,7 @@ export async function transcribe(
 	wavPath: string,
 	config: TrxConfig,
 	languageOverride?: string,
+	onProgress?: (progress: WhisperProgress) => void,
 ): Promise<WhisperResult> {
 	if (!existsSync(config.modelPath)) {
 		throw new Error(`Whisper model not found: ${config.modelPath}\nRun "trx init" to download a model.`);
@@ -42,7 +47,17 @@ export async function transcribe(
 	args.push("--entropy-thold", String(flags.entropyThold));
 	args.push("--logprob-thold", String(flags.logprobThold));
 
-	await spawnOrThrow(args, "whisper-cli transcription");
+	if (onProgress) {
+		args.push("--print-progress");
+		await spawnStreaming(args, "whisper-cli transcription", (line) => {
+			const match = line.match(/progress\s*=\s*(\d+)%/i);
+			if (match) {
+				onProgress({ percent: Number.parseInt(match[1], 10) });
+			}
+		});
+	} else {
+		await spawnOrThrow(args, "whisper-cli transcription");
+	}
 
 	const srtPath = `${wavPath}.srt`;
 	if (!existsSync(srtPath)) {
@@ -62,6 +77,7 @@ function srtToPlainText(srt: string): string {
 	return srt
 		.split("\n")
 		.filter((line) => !/^\[|-->/.test(line))
+		.filter((line) => !/^\d+\s*$/.test(line))
 		.filter((line) => line.trim().length > 0)
 		.join("\n");
 }

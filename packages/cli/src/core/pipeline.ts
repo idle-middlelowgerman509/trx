@@ -2,7 +2,7 @@ import { basename, resolve } from "node:path";
 import type { TrxConfig } from "../utils/config.ts";
 import { cleanAudio } from "./audio.ts";
 import { downloadMedia } from "./download.ts";
-import { transcribe } from "./whisper.ts";
+import { type WhisperProgress, transcribe } from "./whisper.ts";
 
 export interface PipelineOptions {
 	input: string;
@@ -13,6 +13,7 @@ export interface PipelineOptions {
 	noDownload?: boolean;
 	noClean?: boolean;
 	onStep?: (step: string) => void;
+	onProgress?: (progress: WhisperProgress) => void;
 }
 
 export interface PipelineResult {
@@ -52,7 +53,7 @@ export async function runPipeline(opts: PipelineOptions): Promise<PipelineResult
 
 	const whisperInput = opts.noClean ? inputFile : wavPath;
 	opts.onStep?.("Transcribing with Whisper...");
-	const result = await transcribe(whisperInput, config, opts.language);
+	const result = await transcribe(whisperInput, config, opts.language, opts.onProgress);
 
 	return {
 		success: true,
