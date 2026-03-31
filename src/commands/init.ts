@@ -65,6 +65,22 @@ async function downloadModel(modelSize: string, modelsDir: string, isTTY: boolea
 	return modelPath;
 }
 
+async function installSkill(isTTY: boolean): Promise<boolean> {
+	try {
+		const result = await spawn(["npx", "skills", "add", "crafter-station/trx", "-g", "-y"]);
+		if (result.exitCode === 0) {
+			if (isTTY) p.log.success("Claude Code skill installed");
+			return true;
+		}
+		if (isTTY)
+			p.log.warn("Skill install failed (non-critical). Install manually: npx skills add crafter-station/trx -g -y");
+		return false;
+	} catch {
+		if (isTTY) p.log.warn("npx skills not available. Install skill manually: npx skills add crafter-station/trx -g -y");
+		return false;
+	}
+}
+
 export function createInitCommand(): Command {
 	return new Command("init")
 		.description("Install dependencies and download Whisper model")
@@ -121,6 +137,9 @@ export function createInitCommand(): Command {
 				config.modelPath = modelPath;
 				writeConfig(config);
 
+				if (isTTY) p.log.step("Installing Claude Code skill...");
+				const skillInstalled = await installSkill(isTTY);
+
 				if (isTTY) {
 					p.outro("trx is ready. Run: trx <url-or-file>");
 				}
@@ -131,6 +150,7 @@ export function createInitCommand(): Command {
 						model: selectedModel,
 						language,
 						modelPath,
+						skillInstalled,
 						config,
 					},
 				});

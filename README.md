@@ -11,7 +11,15 @@ bun add -g @crafter/trx
 trx init
 ```
 
-`trx init` installs dependencies (`whisper-cli`, `yt-dlp`, `ffmpeg` via Homebrew) and downloads a Whisper model.
+`trx init` installs dependencies (`whisper-cli`, `yt-dlp`, `ffmpeg` via Homebrew), downloads a Whisper model, and installs the Claude Code agent skill.
+
+### Skill Only
+
+If you already have trx set up and just want the Claude Code skill:
+
+```bash
+npx skills add crafter-station/trx -g -y
+```
 
 ## Usage
 
