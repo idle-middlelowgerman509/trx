@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as p from "@clack/prompts";
 import { Command } from "commander";
-import { defaultConfig, ensureTrxDir, getModelsDir, writeConfig } from "../utils/config.ts";
+import { type Backend, defaultConfig, ensureTrxDir, getModelsDir, writeConfig } from "../utils/config.ts";
 import { type OutputFormat, output, outputError } from "../utils/output.ts";
 import { spawn, spawnOrThrow } from "../utils/spawn.ts";
-import { validateLanguage, validateModel } from "../validation/input.ts";
+import { validateBackend, validateLanguage, validateModel, validateOpenAIModel } from "../validation/input.ts";
 
 const MODELS = [
 	{ value: "tiny", label: "tiny (~75 MB)", hint: "fastest, lowest accuracy" },
@@ -14,6 +14,13 @@ const MODELS = [
 	{ value: "small", label: "small (~466 MB)", hint: "balanced speed/accuracy (recommended)" },
 	{ value: "medium", label: "medium (~1.5 GB)", hint: "slow, high accuracy" },
 	{ value: "large", label: "large (~3 GB)", hint: "slowest, best accuracy" },
+	{ value: "large-v3-turbo", label: "large-v3-turbo (~1.6 GB)", hint: "near-large accuracy, ~3x faster" },
+];
+
+const OPENAI_MODELS = [
+	{ value: "gpt-4o-transcribe", label: "gpt-4o-transcribe", hint: "best accuracy ($2.50/hr)" },
+	{ value: "gpt-4o-mini-transcribe", label: "gpt-4o-mini-transcribe", hint: "fastest, cheapest ($0.60/hr)" },
+	{ value: "whisper-1", label: "whisper-1", hint: "legacy ($0.36/hr)" },
 ];
 
 const HF_BASE = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main";
@@ -321,6 +328,7 @@ async function installSkill(isTTY: boolean): Promise<boolean> {
 export function createInitCommand(): Command {
 	return new Command("init")
 		.description("Install dependencies and download Whisper model")
+		.option("-b, --backend <backend>", "transcription backend (local, openai)")
 		.option("-m, --model <size>", "whisper model size", "small")
 		.option("-l, --language <code>", "default language (auto = detect from audio)", "auto")
 		.action(async (opts, cmd) => {
@@ -328,7 +336,6 @@ export function createInitCommand(): Command {
 			const isTTY = process.stdout.isTTY && format !== "json";
 
 			try {
-				const modelSize = validateModel(opts.model);
 				const language = validateLanguage(opts.language);
 
 				if (isTTY) {
@@ -337,6 +344,84 @@ export function createInitCommand(): Command {
 				}
 
 				ensureTrxDir();
+
+				let selectedBackend: Backend = opts.backend ? validateBackend(opts.backend) : "local";
+				if (isTTY && !cmd.getOptionValueSource("backend")) {
+					const choice = await p.select({
+						message: "Transcription backend:",
+						options: [
+							{ value: "local", label: "Local (whisper.cpp)", hint: "free, private, offline" },
+							{ value: "openai", label: "OpenAI API", hint: "fast, requires API key" },
+						],
+						initialValue: "local",
+					});
+					if (p.isCancel(choice)) {
+						p.cancel("Init cancelled");
+						process.exit(0);
+					}
+					selectedBackend = choice as Backend;
+				}
+
+				if (selectedBackend === "openai") {
+					const apiKey = process.env.OPENAI_API_KEY;
+					if (!apiKey) {
+						outputError("OPENAI_API_KEY not set. Export it: export OPENAI_API_KEY=sk-...", format);
+						return;
+					}
+					if (isTTY) p.log.success("OPENAI_API_KEY detected");
+
+					let selectedModel = "gpt-4o-transcribe";
+					if (isTTY && !cmd.getOptionValueSource("model")) {
+						const choice = await p.select({
+							message: "Select OpenAI model:",
+							options: OPENAI_MODELS,
+							initialValue: "gpt-4o-transcribe",
+						});
+						if (p.isCancel(choice)) {
+							p.cancel("Init cancelled");
+							process.exit(0);
+						}
+						selectedModel = choice as string;
+					} else if (opts.model) {
+						selectedModel = validateOpenAIModel(opts.model);
+					}
+
+					if (isTTY) p.log.step("Checking ffmpeg + yt-dlp (still needed for download/clean)...");
+					const [hasYtdlp, hasFfmpeg] = await Promise.all([
+						installDep("yt-dlp", isTTY),
+						installDep("ffmpeg", isTTY),
+					]);
+					if (!hasYtdlp || !hasFfmpeg) {
+						const missing = [!hasYtdlp && "yt-dlp", !hasFfmpeg && "ffmpeg"].filter(Boolean).join(", ");
+						outputError(`Missing dependencies: ${missing}`, format);
+						return;
+					}
+
+					const config = defaultConfig("small", language, "openai");
+					config.openai.model = selectedModel as typeof config.openai.model;
+					writeConfig(config);
+
+					if (isTTY) p.log.step("Agent skill setup...");
+					const skillInstalled = await installSkill(isTTY);
+
+					if (isTTY) {
+						p.outro(`trx is ready (openai/${selectedModel}). Run: trx <url-or-file>`);
+					}
+
+					output(format, {
+						json: {
+							success: true,
+							backend: "openai",
+							model: selectedModel,
+							language,
+							skillInstalled,
+							config,
+						},
+					});
+					return;
+				}
+
+				const modelSize = validateModel(opts.model);
 
 				if (isTTY) p.log.step("Checking dependencies...");
 
@@ -371,7 +456,7 @@ export function createInitCommand(): Command {
 				const modelsDir = getModelsDir();
 				const modelPath = await downloadModel(selectedModel, modelsDir, isTTY);
 
-				const config = defaultConfig(selectedModel, language);
+				const config = defaultConfig(selectedModel, language, "local");
 				config.modelPath = modelPath;
 				writeConfig(config);
 
@@ -385,6 +470,7 @@ export function createInitCommand(): Command {
 				output(format, {
 					json: {
 						success: true,
+						backend: "local",
 						model: selectedModel,
 						language,
 						modelPath,

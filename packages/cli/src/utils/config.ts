@@ -2,12 +2,20 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+export type Backend = "local" | "openai";
+
+export type OpenAIModel = "gpt-4o-transcribe" | "gpt-4o-mini-transcribe" | "whisper-1";
+
 export interface TrxConfig {
+	backend: Backend;
 	modelPath: string;
 	modelSize: string;
 	language: string;
 	threads: number;
 	wordTimestamps: boolean;
+	openai: {
+		model: OpenAIModel;
+	};
 	whisperFlags: {
 		suppressNst: boolean;
 		noFallback: boolean;
@@ -46,10 +54,11 @@ export function readConfig(): TrxConfig | null {
 	if (!existsSync(CONFIG_PATH)) return null;
 	try {
 		const saved = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
-		const defaults = defaultConfig(saved.modelSize || "small", saved.language || "auto");
+		const defaults = defaultConfig(saved.modelSize || "small", saved.language || "auto", saved.backend || "local");
 		return {
 			...defaults,
 			...saved,
+			openai: { ...defaults.openai, ...(saved.openai || {}) },
 			whisperFlags: { ...defaults.whisperFlags, ...(saved.whisperFlags || {}) },
 		};
 	} catch {
@@ -62,13 +71,17 @@ export function writeConfig(config: TrxConfig): void {
 	writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
-export function defaultConfig(modelSize: string, language: string): TrxConfig {
+export function defaultConfig(modelSize: string, language: string, backend: Backend = "local"): TrxConfig {
 	return {
+		backend,
 		modelPath: join(MODELS_DIR, `ggml-${modelSize}.bin`),
 		modelSize,
 		language,
 		threads: 8,
 		wordTimestamps: false,
+		openai: {
+			model: "gpt-4o-transcribe",
+		},
 		whisperFlags: {
 			suppressNst: true,
 			noFallback: true,

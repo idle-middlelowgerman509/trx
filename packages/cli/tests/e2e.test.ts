@@ -78,6 +78,7 @@ describe("trx schema", () => {
 		expect(data).toHaveProperty("examples");
 
 		const flags = data.flags as Record<string, unknown>;
+		expect(flags).toHaveProperty("--backend");
 		expect(flags).toHaveProperty("--language");
 		expect(flags).toHaveProperty("--model");
 		expect(flags).toHaveProperty("--dry-run");
@@ -249,7 +250,7 @@ describe("input validation", () => {
 		expect(exitCode).toBe(1);
 		const data = parseJSON(stdout) as Record<string, unknown>;
 		expect(data.success).toBe(false);
-		expect(data.error).toContain("Unknown model");
+		expect(data.error).toContain("Unknown local model");
 	});
 
 	test("accepts valid language codes", async () => {
@@ -268,7 +269,7 @@ describe("input validation", () => {
 	});
 
 	test("accepts valid model names", async () => {
-		for (const model of ["tiny", "base", "small", "medium", "large"]) {
+		for (const model of ["tiny", "base", "small", "medium", "large", "large-v3-turbo"]) {
 			const { exitCode } = await run([
 				"transcribe",
 				"https://example.com/video.mp4",
@@ -355,6 +356,92 @@ describe("trx transcribe (real file)", () => {
 		expect(data).not.toHaveProperty("files");
 		expect(data).not.toHaveProperty("metadata");
 	}, 30000);
+});
+
+describe("backend selection", () => {
+	test("--backend openai shows openai in dry-run plan", async () => {
+		const { stdout, exitCode } = await run([
+			"transcribe",
+			"https://example.com/video.mp4",
+			"--backend",
+			"openai",
+			"--dry-run",
+			"--output",
+			"json",
+		]);
+		expect(exitCode).toBe(0);
+		const data = parseJSON(stdout) as Record<string, unknown>;
+		expect(data.backend).toBe("openai");
+		const steps = data.steps as string[];
+		expect(steps.some((s) => s.includes("OpenAI"))).toBe(true);
+	});
+
+	test("--backend local shows whisper-cli in dry-run plan", async () => {
+		const { stdout, exitCode } = await run([
+			"transcribe",
+			"https://example.com/video.mp4",
+			"--backend",
+			"local",
+			"--dry-run",
+			"--output",
+			"json",
+		]);
+		expect(exitCode).toBe(0);
+		const data = parseJSON(stdout) as Record<string, unknown>;
+		expect(data.backend).toBe("local");
+		const steps = data.steps as string[];
+		expect(steps).toContain("transcribe via whisper-cli");
+	});
+
+	test("rejects invalid backend", async () => {
+		const { stdout, exitCode } = await run([
+			"transcribe",
+			"https://example.com/video.mp4",
+			"--backend",
+			"azure",
+			"--dry-run",
+			"--output",
+			"json",
+		]);
+		expect(exitCode).toBe(1);
+		const data = parseJSON(stdout) as Record<string, unknown>;
+		expect(data.success).toBe(false);
+		expect(data.error).toContain("Unknown backend");
+	});
+
+	test("openai backend validates openai model names", async () => {
+		const { stdout, exitCode } = await run([
+			"transcribe",
+			"https://example.com/video.mp4",
+			"--backend",
+			"openai",
+			"--model",
+			"gpt-4o-transcribe",
+			"--dry-run",
+			"--output",
+			"json",
+		]);
+		expect(exitCode).toBe(0);
+		const data = parseJSON(stdout) as Record<string, unknown>;
+		expect(data.model).toBe("gpt-4o-transcribe");
+	});
+
+	test("openai backend rejects local model names", async () => {
+		const { stdout, exitCode } = await run([
+			"transcribe",
+			"https://example.com/video.mp4",
+			"--backend",
+			"openai",
+			"--model",
+			"small",
+			"--dry-run",
+			"--output",
+			"json",
+		]);
+		expect(exitCode).toBe(1);
+		const data = parseJSON(stdout) as Record<string, unknown>;
+		expect(data.error).toContain("Unknown OpenAI model");
+	});
 });
 
 describe("trx shorthand", () => {

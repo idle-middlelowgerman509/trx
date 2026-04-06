@@ -1,12 +1,17 @@
 {
 	"command": "init",
-	"description": "Install dependencies (whisper-cli, yt-dlp, ffmpeg) and download Whisper model",
+	"description": "Install dependencies and configure transcription backend (local whisper-cli or OpenAI API)",
 	"flags": {
+		"--backend": {
+			"type": "string",
+			"enum": ["local", "openai"],
+			"default": "local",
+			"description": "Transcription backend. 'openai' skips whisper-cli install, requires OPENAI_API_KEY"
+		},
 		"--model": {
 			"type": "string",
-			"enum": ["tiny", "base", "small", "medium", "large"],
 			"default": "small",
-			"description": "Whisper model size to download"
+			"description": "Model to use. Local: tiny, base, small, medium, large, large-v3-turbo. OpenAI: gpt-4o-transcribe, gpt-4o-mini-transcribe, whisper-1"
 		},
 		"--language": {
 			"type": "string",
@@ -23,7 +28,7 @@
 	"dependencies": {
 		"whisper-cli": {
 			"install": "brew install whisper-cpp",
-			"purpose": "Local speech-to-text transcription engine"
+			"purpose": "Local speech-to-text transcription engine (not needed for openai backend)"
 		},
 		"yt-dlp": {
 			"install": "brew install yt-dlp",
@@ -36,10 +41,17 @@
 	},
 	"output": {
 		"success": "boolean",
+		"backend": "string (local | openai)",
 		"model": "string",
 		"language": "string",
-		"modelPath": "string",
+		"modelPath": "string (local only)",
 		"config": "TrxConfig object"
 	},
-	"examples": ["trx init", "trx init --model small --language es", "trx init --model large --output json"]
+	"examples": [
+		"trx init",
+		"trx init --backend openai",
+		"trx init --backend openai --model gpt-4o-mini-transcribe",
+		"trx init --model large-v3-turbo --language es",
+		"trx init --model large --output json"
+	]
 }

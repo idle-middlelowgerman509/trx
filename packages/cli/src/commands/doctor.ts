@@ -38,11 +38,23 @@ export function createDoctorCommand(): Command {
 		const modelsDir = getModelsDir();
 		const modelExists = config ? existsSync(config.modelPath) : false;
 
-		const allInstalled = whisper.installed && ytdlp.installed && ffmpeg.installed;
+		const backend = config?.backend || "local";
+		const hasApiKey = !!process.env.OPENAI_API_KEY;
+		const isOpenAI = backend === "openai";
+		const coreDepsOk = ytdlp.installed && ffmpeg.installed;
+		const localDepsOk = coreDepsOk && whisper.installed;
+		const healthy = isOpenAI
+			? coreDepsOk && !!config && hasApiKey
+			: localDepsOk && !!config && modelExists;
 
 		const data = {
-			healthy: allInstalled && !!config && modelExists,
+			healthy,
+			backend,
 			dependencies: { "whisper-cli": whisper, "yt-dlp": ytdlp, ffmpeg },
+			openai: {
+				apiKey: hasApiKey,
+				model: config?.openai?.model || "gpt-4o-transcribe",
+			},
 			config: {
 				exists: !!config,
 				path: configPath,
@@ -62,11 +74,22 @@ export function createDoctorCommand(): Command {
 			output(format, { json: data });
 		} else {
 			console.log("\ntrx doctor\n");
-			const deps = [
-				["whisper-cli", whisper],
-				["yt-dlp", ytdlp],
-				["ffmpeg", ffmpeg],
-			] as const;
+			console.log(`  Backend: ${backend}`);
+			if (isOpenAI) {
+				console.log(`  API Key: ${hasApiKey ? "\u2713" : "\u2717 (OPENAI_API_KEY not set)"}`);
+				console.log(`  API Model: ${config?.openai?.model || "gpt-4o-transcribe"}`);
+			}
+			console.log();
+			const deps = isOpenAI
+				? ([
+						["yt-dlp", ytdlp],
+						["ffmpeg", ffmpeg],
+					] as const)
+				: ([
+						["whisper-cli", whisper],
+						["yt-dlp", ytdlp],
+						["ffmpeg", ffmpeg],
+					] as const);
 			for (const [name, dep] of deps) {
 				const status = dep.installed ? "\u2713" : "\u2717";
 				const ver = dep.version ? ` (${dep.version})` : "";
@@ -75,15 +98,21 @@ export function createDoctorCommand(): Command {
 			console.log();
 			if (config) {
 				console.log(`  Config: ${configPath}`);
-				console.log(`  Model: ${config.modelSize} ${modelExists ? "\u2713" : "\u2717 (not downloaded)"}`);
+				if (!isOpenAI) {
+					console.log(`  Model: ${config.modelSize} ${modelExists ? "\u2713" : "\u2717 (not downloaded)"}`);
+				}
 				console.log(`  Language: ${config.language}`);
 			} else {
 				console.log('  Config: not found. Run "trx init" to set up.');
 			}
 			console.log();
 
-			if (!allInstalled) {
-				outputError('Missing dependencies. Run "trx init" to install.', "table");
+			if (!healthy) {
+				const issues: string[] = [];
+				if (isOpenAI && !hasApiKey) issues.push("OPENAI_API_KEY not set");
+				if (!coreDepsOk) issues.push('missing dependencies — run "trx init"');
+				if (!isOpenAI && !whisper.installed) issues.push('whisper-cli missing — run "trx init"');
+				outputError(issues.join("; "), "table");
 			}
 		}
 	});
