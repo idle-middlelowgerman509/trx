@@ -1,4 +1,6 @@
 ---
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { getCollection, render } from "astro:content";
 import Base from "../layouts/Base.astro";
 
@@ -11,6 +13,12 @@ const rendered = await Promise.all(
 		return { entry, Content };
 	})
 );
+
+const rawMarkdown = sorted.map(entry => {
+	const filePath = resolve(`./src/content/docs/${entry.id}.md`);
+	const content = readFileSync(filePath, "utf-8");
+	return content.replace(/^---[\s\S]*?---\n*/, "");
+}).join("\n\n---\n\n");
 ---
 
 <Base title="Docs" description="Documentation for the trx CLI — commands, configuration, and agent skill.">
@@ -24,6 +32,7 @@ const rendered = await Promise.all(
 							<a href={`#${entry.id}`} class="docs-nav-link">{entry.data.title}</a>
 						))}
 					</nav>
+					<button id="copy-all-md" class="copy-all-btn">Copy Markdown</button>
 				</div>
 			</aside>
 
@@ -36,6 +45,10 @@ const rendered = await Promise.all(
 					</section>
 				))}
 			</main>
+
+			<script is:inline define:vars={{ rawMarkdown }}>
+				window.__docsMarkdown = rawMarkdown;
+			</script>
 		</div>
 	</div>
 </Base>
@@ -92,6 +105,31 @@ const rendered = await Promise.all(
 	.docs-block:first-child { padding-top: 0; }
 	.docs-block:last-child { border-bottom: none; }
 
+	.copy-all-btn {
+		margin-top: 20px;
+		width: 100%;
+		padding: 8px 12px;
+		font-family: 'Geist Mono', monospace;
+		font-size: 12px;
+		font-weight: 500;
+		color: var(--blue);
+		background: var(--bg-alt);
+		border: 1px dashed var(--blue);
+		border-radius: 6px;
+		cursor: pointer;
+		transition: all 150ms;
+	}
+	.copy-all-btn:hover {
+		background: var(--blue);
+		color: var(--white);
+		border-style: solid;
+	}
+	.copy-all-btn.copied {
+		background: var(--blue);
+		color: var(--white);
+		border-style: solid;
+	}
+
 	@media (max-width: 768px) {
 		.docs-container {
 			flex-direction: column;
@@ -101,3 +139,15 @@ const rendered = await Promise.all(
 		.docs-body { max-width: 100%; }
 	}
 </style>
+
+<script>
+document.getElementById('copy-all-md')?.addEventListener('click', async (e) => {
+	const btn = e.currentTarget as HTMLButtonElement;
+	const md = (window as any).__docsMarkdown;
+	if (!md) return;
+	await navigator.clipboard.writeText(md);
+	btn.textContent = 'Copied!';
+	btn.classList.add('copied');
+	setTimeout(() => { btn.textContent = 'Copy Markdown'; btn.classList.remove('copied'); }, 2000);
+});
+</script>
