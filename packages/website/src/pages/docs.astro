@@ -1,0 +1,95 @@
+---
+import { getCollection, render } from "astro:content";
+import Base from "../layouts/Base.astro";
+
+const entries = await getCollection("docs");
+const sorted = entries.sort((a, b) => a.data.order - b.data.order);
+
+const rendered = await Promise.all(
+	sorted.map(async (entry) => {
+		const { Content } = await render(entry);
+		return { entry, Content };
+	})
+);
+---
+
+<Base title="Docs" description="Documentation for the trx CLI — commands, configuration, and agent skill.">
+	<div class="docs-layout">
+		<aside class="docs-sidebar">
+			<div class="sidebar-inner">
+				<div class="sidebar-title">Documentation</div>
+				<nav class="sidebar-nav">
+					{sorted.map(entry => (
+						<a href={`#${entry.id}`} class="sidebar-link">{entry.data.title}</a>
+					))}
+				</nav>
+			</div>
+		</aside>
+
+		<main class="docs-main">
+			{rendered.map(({ entry, Content }) => (
+				<section id={entry.id} class="docs-section">
+					<div class="prose">
+						<Content />
+					</div>
+				</section>
+			))}
+		</main>
+	</div>
+</Base>
+
+<style>
+	.docs-layout {
+		display: grid;
+		grid-template-columns: 220px 1fr;
+		gap: 40px;
+		max-width: 1080px;
+		margin: 0 auto;
+		padding: 80px 24px 60px;
+	}
+
+	.docs-sidebar {
+		position: sticky;
+		top: 72px;
+		align-self: start;
+	}
+	.sidebar-inner {
+		padding: 16px 0;
+	}
+	.sidebar-title {
+		font-family: 'Geist Mono', monospace;
+		font-size: 11px; font-weight: 600; text-transform: uppercase;
+		letter-spacing: 0.12em; color: var(--blue); margin-bottom: 16px;
+	}
+	.sidebar-nav {
+		display: flex; flex-direction: column; gap: 4px;
+	}
+	.sidebar-link {
+		font-size: 13px; color: var(--text-2); text-decoration: none;
+		padding: 6px 12px; border-radius: 6px;
+		border-left: 2px solid transparent;
+		transition: all 150ms;
+	}
+	.sidebar-link:hover {
+		color: var(--text); background: var(--bg-alt);
+		border-left-color: var(--blue);
+	}
+
+	.docs-main {
+		min-width: 0;
+	}
+	.docs-section {
+		padding: 32px 0;
+		border-bottom: 2px dashed var(--border);
+	}
+	.docs-section:first-child { padding-top: 16px; }
+	.docs-section:last-child { border-bottom: none; }
+
+	@media (max-width: 768px) {
+		.docs-layout {
+			grid-template-columns: 1fr;
+			padding: 72px 16px 40px;
+		}
+		.docs-sidebar { display: none; }
+	}
+</style>
