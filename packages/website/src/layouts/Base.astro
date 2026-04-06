@@ -1,0 +1,208 @@
+---
+import Analytics from "@vercel/analytics/astro";
+
+interface Props {
+	title: string;
+	description?: string;
+}
+
+const { title, description = "Agent-first CLI for audio/video transcription via Whisper" } = Astro.props;
+const fullTitle = title === "trx" ? "trx — Agent-First Transcription CLI" : `${title} — trx`;
+---
+
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>{fullTitle}</title>
+	<meta name="description" content={description} />
+	<meta property="og:title" content={fullTitle} />
+	<meta property="og:description" content={description} />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://trx.crafter.run" />
+	<meta property="og:image" content="https://trx.crafter.run/og.png" />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:image" content="https://trx.crafter.run/og-twitter.png" />
+	<link rel="icon" type="image/png" href="/favicon.png" />
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+		html { scroll-behavior: smooth; }
+
+		:root {
+			--blue: #2563EB;
+			--blue-light: #60A5FA;
+			--blue-pale: #DBEAFE;
+			--bg: #F8FAFC;
+			--bg-alt: #EFF6FF;
+			--bg-dark: #0F172A;
+			--bg-dark-2: #1E293B;
+			--border: #CBD5E1;
+			--border-light: #E2E8F0;
+			--text: #0F172A;
+			--text-2: #475569;
+			--text-3: #94A3B8;
+			--white: #FFFFFF;
+		}
+
+		body {
+			font-family: 'Inter', system-ui, sans-serif;
+			font-size: 15px;
+			line-height: 1.6;
+			color: var(--text);
+			background: var(--bg);
+			-webkit-font-smoothing: antialiased;
+		}
+
+		.mono { font-family: 'Geist Mono', 'JetBrains Mono', monospace; }
+		.container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+		nav {
+			position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+			background: rgba(248,250,252,0.9); backdrop-filter: blur(12px);
+			border-bottom: 1px solid var(--border-light);
+		}
+		.nav-inner {
+			max-width: 1080px; margin: 0 auto; padding: 0 24px;
+			height: 56px; display: flex; align-items: center; justify-content: space-between;
+		}
+		.nav-brand {
+			font-family: 'Geist Mono', monospace; font-weight: 700; font-size: 18px;
+			color: var(--blue); text-decoration: none; letter-spacing: -0.02em;
+		}
+		.nav-links { display: flex; gap: 20px; align-items: center; }
+		.nav-links a { color: var(--text-2); text-decoration: none; font-size: 13px; font-weight: 500; }
+		.nav-links a:hover { color: var(--text); }
+		.nav-links a.active { color: var(--blue); }
+		.nav-cta {
+			background: var(--blue) !important; color: var(--white) !important;
+			padding: 6px 16px; border-radius: 6px; font-family: 'Geist Mono', monospace; font-size: 12px;
+		}
+		.nav-cta:hover { background: #1D4ED8 !important; }
+
+		footer {
+			padding: 40px 24px; border-top: 2px dashed var(--border);
+			text-align: center;
+		}
+		.footer-links { display: flex; gap: 24px; justify-content: center; margin-bottom: 12px; }
+		.footer-links a { color: var(--text-2); text-decoration: none; font-size: 13px; }
+		.footer-links a:hover { color: var(--blue); }
+		.footer-copy {
+			font-family: 'Geist Mono', monospace;
+			font-size: 11px; color: var(--text-3);
+		}
+
+		.page-content {
+			padding: 96px 24px 60px;
+			max-width: 760px;
+			margin: 0 auto;
+		}
+		.page-content h1 {
+			font-family: 'Geist Mono', monospace;
+			font-size: 28px; font-weight: 700; color: var(--text);
+			letter-spacing: -0.02em; margin-bottom: 8px;
+		}
+		.page-content .page-desc {
+			font-size: 15px; color: var(--text-2); margin-bottom: 40px;
+		}
+
+		.prose h2 {
+			font-family: 'Geist Mono', monospace;
+			font-size: 20px; font-weight: 700; color: var(--text);
+			letter-spacing: -0.01em; margin: 40px 0 12px; padding-top: 24px;
+			border-top: 1px solid var(--border-light);
+		}
+		.prose h2:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+		.prose h3 {
+			font-family: 'Geist Mono', monospace;
+			font-size: 15px; font-weight: 600; color: var(--blue);
+			margin: 24px 0 8px;
+		}
+		.prose p { margin: 12px 0; color: var(--text-2); line-height: 1.7; }
+		.prose ul, .prose ol { margin: 12px 0; padding-left: 24px; color: var(--text-2); }
+		.prose li { margin: 4px 0; line-height: 1.6; }
+		.prose strong { color: var(--text); font-weight: 600; }
+		.prose code {
+			font-family: 'Geist Mono', monospace; font-size: 13px;
+			background: var(--bg-alt); border: 1px solid var(--border-light);
+			padding: 2px 6px; border-radius: 4px; color: var(--blue);
+		}
+		.prose pre {
+			background: var(--bg-dark) !important; border-radius: 8px;
+			padding: 16px 20px; margin: 16px 0; overflow-x: auto;
+			border: 1px solid var(--bg-dark-2);
+		}
+		.prose pre code {
+			background: none; border: none; padding: 0; color: #CBD5E1;
+			font-size: 13px; line-height: 1.7;
+		}
+		.prose table {
+			width: 100%; margin: 16px 0; border-collapse: collapse;
+			font-size: 13px;
+		}
+		.prose th {
+			font-family: 'Geist Mono', monospace; font-weight: 600;
+			text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border);
+			color: var(--text); font-size: 12px; text-transform: uppercase;
+			letter-spacing: 0.05em;
+		}
+		.prose td {
+			padding: 8px 12px; border-bottom: 1px solid var(--border-light);
+			color: var(--text-2);
+		}
+		.prose td code {
+			font-size: 12px;
+		}
+		.prose hr {
+			border: none; border-top: 2px dashed var(--border);
+			margin: 40px 0;
+		}
+		.prose a { color: var(--blue); text-decoration: none; }
+		.prose a:hover { text-decoration: underline; }
+
+		@media (max-width: 768px) {
+			.page-content { padding: 80px 16px 40px; }
+			.page-content h1 { font-size: 22px; }
+			.prose pre { font-size: 12px; padding: 12px; }
+			.prose table { font-size: 12px; }
+		}
+	</style>
+</head>
+<body>
+
+<nav>
+	<div class="nav-inner">
+		<a href="/" class="nav-brand">trx</a>
+		<div class="nav-links">
+			<a href="/docs" class:list={[{ active: Astro.url.pathname.startsWith("/docs") }]}>Docs</a>
+			<a href="/changelog" class:list={[{ active: Astro.url.pathname === "/changelog" }]}>Changelog</a>
+			<a href="https://github.com/crafter-station/trx" target="_blank" rel="noopener">GitHub</a>
+			<a href="https://www.npmjs.com/package/@crafter/trx" target="_blank" rel="noopener" class="nav-cta">npm install</a>
+		</div>
+	</div>
+</nav>
+
+<slot />
+
+<footer>
+	<div class="container">
+		<div class="footer-links">
+			<a href="/">Home</a>
+			<a href="/docs">Docs</a>
+			<a href="/changelog">Changelog</a>
+			<a href="https://github.com/crafter-station/trx">GitHub</a>
+			<a href="https://www.npmjs.com/package/@crafter/trx">npm</a>
+			<a href="https://crafterstation.com">Crafter Station</a>
+		</div>
+		<div class="footer-copy">Open source. MIT License.</div>
+	</div>
+</footer>
+
+<Analytics />
+</body>
+</html>

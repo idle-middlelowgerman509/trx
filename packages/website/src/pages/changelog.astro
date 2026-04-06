@@ -1,0 +1,66 @@
+---
+import { getCollection, render } from "astro:content";
+import Base from "../layouts/Base.astro";
+
+const entries = await getCollection("changelog");
+const sorted = entries.sort((a, b) => {
+	const [aMajor, aMinor, aPatch] = a.data.version.split(".").map(Number);
+	const [bMajor, bMinor, bPatch] = b.data.version.split(".").map(Number);
+	return bMajor - aMajor || bMinor - aMinor || (bPatch || 0) - (aPatch || 0);
+});
+
+const rendered = await Promise.all(
+	sorted.map(async (entry) => {
+		const { Content } = await render(entry);
+		return { entry, Content };
+	})
+);
+---
+
+<Base title="Changelog" description="Release history for the trx CLI.">
+	<div class="page-content">
+		<h1>Changelog</h1>
+		<p class="page-desc">Release history for the trx CLI.</p>
+
+		<div class="changelog-list">
+			{rendered.map(({ entry, Content }) => (
+				<article class="changelog-entry">
+					<div class="changelog-header">
+						<span class="changelog-version">{entry.data.version}</span>
+						<span class="changelog-date">{entry.data.date}</span>
+					</div>
+					<h2 class="changelog-title">{entry.data.title}</h2>
+					<div class="prose">
+						<Content />
+					</div>
+				</article>
+			))}
+		</div>
+	</div>
+</Base>
+
+<style>
+	.changelog-list { display: flex; flex-direction: column; gap: 0; }
+	.changelog-entry {
+		padding: 32px 0;
+		border-bottom: 2px dashed var(--border);
+	}
+	.changelog-entry:first-child { padding-top: 0; }
+	.changelog-entry:last-child { border-bottom: none; }
+	.changelog-header {
+		display: flex; align-items: center; gap: 12px; margin-bottom: 4px;
+	}
+	.changelog-version {
+		font-family: 'Geist Mono', monospace; font-size: 14px; font-weight: 700;
+		color: var(--blue); background: var(--blue-pale);
+		padding: 2px 10px; border-radius: 4px;
+	}
+	.changelog-date {
+		font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--text-3);
+	}
+	.changelog-title {
+		font-family: 'Geist Mono', monospace;
+		font-size: 18px; font-weight: 700; color: var(--text);
+		margin-bottom: 16px; letter-spacing: -0.01em;
+	}
+</style>

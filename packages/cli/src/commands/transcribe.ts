@@ -4,7 +4,7 @@ import { Command } from "commander";
 import { type PipelineResult, runPipeline } from "../core/pipeline.ts";
 import { readConfig } from "../utils/config.ts";
 import { type OutputFormat, output, outputError } from "../utils/output.ts";
-import { validateInput, validateLanguage, validateModel } from "../validation/input.ts";
+import { validateBackend, validateInput, validateLanguage, validateModel, validateOpenAIModel } from "../validation/input.ts";
 
 function filterFields(result: PipelineResult, fields?: string): Record<string, unknown> {
 	if (!fields) return result;
@@ -33,6 +33,7 @@ export function createTranscribeCommand(): Command {
 		.option("--json <payload>", "raw JSON input for agents")
 		.option("--output-dir <dir>", "output directory", ".")
 		.option("-w, --words", "word-level timestamps in SRT")
+		.option("-b, --backend <backend>", "transcription backend (local, openai)")
 		.option("--no-download", "skip yt-dlp (input must be local)")
 		.option("--no-clean", "skip ffmpeg audio cleaning")
 		.action(async (inputArg, opts, cmd) => {
@@ -49,34 +50,51 @@ export function createTranscribeCommand(): Command {
 				let parsedInput: { type: "url" | "file"; value: string };
 				let language = opts.language;
 				let modelOverride = opts.model;
+				let backendOverride = opts.backend;
 
 				if (opts.json) {
 					const payload = JSON.parse(opts.json);
 					parsedInput = validateInput(payload.input || inputArg);
 					language = payload.language || language;
 					modelOverride = payload.model || modelOverride;
+					backendOverride = payload.backend || backendOverride;
 				} else {
 					parsedInput = validateInput(inputArg);
 				}
 
 				if (language) validateLanguage(language);
-				if (modelOverride) validateModel(modelOverride);
+				const effectiveBackend = backendOverride ? validateBackend(backendOverride) : config.backend;
+				if (modelOverride) {
+					if (effectiveBackend === "openai") {
+						validateOpenAIModel(modelOverride);
+					} else {
+						validateModel(modelOverride);
+					}
+				}
 
 				const outputDir = resolve(opts.outputDir);
 
 				if (opts.dryRun) {
+					const transcribeStep =
+						effectiveBackend === "openai"
+							? `transcribe via OpenAI ${modelOverride || config.openai.model}`
+							: "transcribe via whisper-cli";
 					output(format, {
 						json: {
 							dryRun: true,
 							input: parsedInput.value,
 							inputType: parsedInput.type,
+							backend: effectiveBackend,
 							language: language || "auto",
-							model: modelOverride || config.modelSize,
+							model:
+								effectiveBackend === "openai"
+									? modelOverride || config.openai.model
+									: modelOverride || config.modelSize,
 							outputDir,
 							steps: [
 								...(parsedInput.type === "url" && opts.download !== false ? ["download via yt-dlp"] : []),
 								...(opts.clean !== false ? ["clean audio via ffmpeg"] : []),
-								"transcribe via whisper-cli",
+								transcribeStep,
 								"generate .srt and .txt",
 							],
 						},
@@ -90,13 +108,13 @@ export function createTranscribeCommand(): Command {
 					spinner = p.spinner();
 				}
 
-				const effectiveConfig = modelOverride
-					? {
-							...config,
-							modelSize: modelOverride,
-							modelPath: config.modelPath.replace(/ggml-\w+\.bin/, `ggml-${modelOverride}.bin`),
-						}
-					: { ...config };
+				const effectiveConfig = { ...config };
+				if (effectiveBackend === "openai" && modelOverride) {
+					effectiveConfig.openai = { ...config.openai, model: modelOverride as typeof config.openai.model };
+				} else if (modelOverride) {
+					effectiveConfig.modelSize = modelOverride;
+					effectiveConfig.modelPath = config.modelPath.replace(/ggml-[\w.-]+\.bin/, `ggml-${modelOverride}.bin`);
+				}
 
 				if (opts.words) effectiveConfig.wordTimestamps = true;
 
@@ -106,6 +124,7 @@ export function createTranscribeCommand(): Command {
 					config: effectiveConfig,
 					outputDir,
 					language: language || "auto",
+					backend: effectiveBackend,
 					noDownload: opts.download === false,
 					noClean: opts.clean === false,
 					onStep: (step) => {
@@ -131,6 +150,7 @@ export function createTranscribeCommand(): Command {
 						headers: ["Property", "Value"],
 						rows: [
 							["Input", result.input],
+							["Backend", result.backend],
 							["Language", result.metadata.language],
 							["Model", result.metadata.model],
 							["TXT", result.files.txt],
@@ -141,7 +161,9 @@ export function createTranscribeCommand(): Command {
 
 				if (isTTY) {
 					const wordCount = result.text.split(/\s+/).filter(Boolean).length;
-					p.note(`${wordCount} words transcribed\n\nopen ${result.files.txt}`, "Next");
+					const openCmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+					const quotedPath = result.files.txt.includes(" ") ? `"${result.files.txt}"` : result.files.txt;
+					p.note(`${wordCount} words transcribed\n\n${openCmd} ${quotedPath}`, "Next");
 					process.exit(0);
 				}
 			} catch (e) {

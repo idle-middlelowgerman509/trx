@@ -158,7 +158,7 @@ export function validateLanguage(lang: string): WhisperLanguage {
 	return cleaned as WhisperLanguage;
 }
 
-const VALID_MODELS = [
+const VALID_LOCAL_MODELS = [
 	"tiny",
 	"tiny.en",
 	"base",
@@ -168,15 +168,35 @@ const VALID_MODELS = [
 	"medium",
 	"medium.en",
 	"large",
+	"large-v3-turbo",
 ] as const;
-export type WhisperModel = (typeof VALID_MODELS)[number];
+export type WhisperModel = (typeof VALID_LOCAL_MODELS)[number];
+
+const VALID_OPENAI_MODELS = ["gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"] as const;
+export type OpenAITranscribeModel = (typeof VALID_OPENAI_MODELS)[number];
 
 export function validateModel(model: string): WhisperModel {
 	const cleaned = model.trim().toLowerCase();
-	if (!VALID_MODELS.includes(cleaned as WhisperModel)) {
-		throw new Error(`Unknown model: "${model}". Available: ${VALID_MODELS.join(", ")}`);
+	if (!VALID_LOCAL_MODELS.includes(cleaned as WhisperModel)) {
+		throw new Error(`Unknown local model: "${model}". Available: ${VALID_LOCAL_MODELS.join(", ")}`);
 	}
 	return cleaned as WhisperModel;
+}
+
+export function validateOpenAIModel(model: string): OpenAITranscribeModel {
+	const cleaned = model.trim().toLowerCase();
+	if (!VALID_OPENAI_MODELS.includes(cleaned as OpenAITranscribeModel)) {
+		throw new Error(`Unknown OpenAI model: "${model}". Available: ${VALID_OPENAI_MODELS.join(", ")}`);
+	}
+	return cleaned as OpenAITranscribeModel;
+}
+
+export function validateBackend(backend: string): "local" | "openai" {
+	const cleaned = backend.trim().toLowerCase();
+	if (cleaned !== "local" && cleaned !== "openai") {
+		throw new Error(`Unknown backend: "${backend}". Available: local, openai`);
+	}
+	return cleaned;
 }
 
 export function validateInput(input: string): { type: "url" | "file"; value: string } {

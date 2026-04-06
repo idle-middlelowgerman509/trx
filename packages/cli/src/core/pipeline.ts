@@ -1,7 +1,8 @@
 import { basename, resolve } from "node:path";
-import type { TrxConfig } from "../utils/config.ts";
+import type { Backend, TrxConfig } from "../utils/config.ts";
 import { cleanAudio } from "./audio.ts";
 import { downloadMedia } from "./download.ts";
+import { transcribeOpenAI } from "./openai.ts";
 import { type WhisperProgress, transcribe } from "./whisper.ts";
 
 export interface PipelineOptions {
@@ -10,6 +11,7 @@ export interface PipelineOptions {
 	config: TrxConfig;
 	outputDir: string;
 	language?: string;
+	backend?: Backend;
 	noDownload?: boolean;
 	noClean?: boolean;
 	onStep?: (step: string) => void;
@@ -19,6 +21,7 @@ export interface PipelineOptions {
 export interface PipelineResult {
 	success: true;
 	input: string;
+	backend: Backend;
 	files: {
 		wav: string;
 		srt: string;
@@ -33,6 +36,7 @@ export interface PipelineResult {
 
 export async function runPipeline(opts: PipelineOptions): Promise<PipelineResult> {
 	const { config, outputDir } = opts;
+	const backend = opts.backend || config.backend || "local";
 	let inputFile: string;
 
 	if (opts.inputType === "url" && !opts.noDownload) {
@@ -54,13 +58,37 @@ export async function runPipeline(opts: PipelineOptions): Promise<PipelineResult
 		await cleanAudio(inputFile, wavPath);
 	}
 
-	const whisperInput = opts.noClean ? inputFile : wavPath;
+	const audioInput = opts.noClean ? inputFile : wavPath;
+
+	if (backend === "openai") {
+		const model = config.openai.model;
+		opts.onStep?.(`Transcribing with OpenAI ${model}...`);
+		const result = await transcribeOpenAI(audioInput, model, opts.language);
+
+		return {
+			success: true,
+			input: opts.input,
+			backend: "openai",
+			files: {
+				wav: wavPath,
+				srt: result.srtPath,
+				txt: result.txtPath,
+			},
+			metadata: {
+				language: opts.language || "auto",
+				model,
+			},
+			text: result.text,
+		};
+	}
+
 	opts.onStep?.("Transcribing with Whisper...");
-	const result = await transcribe(whisperInput, config, opts.language, opts.onProgress);
+	const result = await transcribe(audioInput, config, opts.language, opts.onProgress);
 
 	return {
 		success: true,
 		input: opts.input,
+		backend: "local",
 		files: {
 			wav: wavPath,
 			srt: result.srtPath,
