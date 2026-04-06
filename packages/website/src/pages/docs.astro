@@ -16,13 +16,15 @@ const rendered = await Promise.all(
 <Base title="Docs" description="Documentation for the trx CLI — commands, configuration, and agent skill.">
 	<div class="docs-page">
 		<div class="docs-container">
-			<aside class="docs-nav">
-				<div class="docs-nav-label">Documentation</div>
-				<nav>
-					{sorted.map(entry => (
-						<a href={`#${entry.id}`} class="docs-nav-link">{entry.data.title}</a>
-					))}
-				</nav>
+			<aside class="docs-rail">
+				<div class="docs-nav">
+					<div class="docs-nav-label">Documentation</div>
+					<nav>
+						{sorted.map(entry => (
+							<a href={`#${entry.id}`} class="docs-nav-link">{entry.data.title}</a>
+						))}
+					</nav>
+				</div>
 			</aside>
 
 			<main class="docs-body">
@@ -50,12 +52,13 @@ const rendered = await Promise.all(
 		padding: 40px 24px 60px;
 	}
 
+	.docs-rail {
+		flex-shrink: 0;
+		width: 180px;
+	}
 	.docs-nav {
 		position: sticky;
 		top: 80px;
-		align-self: flex-start;
-		flex-shrink: 0;
-		width: 180px;
 	}
 	.docs-nav-label {
 		font-family: 'Geist Mono', monospace;
@@ -94,7 +97,7 @@ const rendered = await Promise.all(
 			flex-direction: column;
 			padding: 24px 16px 40px;
 		}
-		.docs-nav { display: none; }
+		.docs-rail { display: none; }
 		.docs-body { max-width: 100%; }
 	}
 </style>
